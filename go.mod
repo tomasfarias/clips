@@ -1,4 +1,4 @@
-module github.com/tomasfarias/findme
+module github.com/tomasfarias/clips
 
 go 1.14
 
