@@ -34,7 +34,9 @@ func ParseCommand(args string) (Command, error) {
 	if len(stringDates) > 0 {
 		args = removeSubStrings(args, stringDates)
 		command.StartedAt = dates[0]
-		command.EndedAt = dates[1]
+		if len(stringDates) > 1 {
+			command.EndedAt = dates[1]
+		}
 	}
 
 	title := strings.FieldsFunc(args, splitQuote)

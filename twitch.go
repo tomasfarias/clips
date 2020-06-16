@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 )
 
 type ClipsResponse struct {
@@ -17,20 +18,22 @@ type ClipsResponse struct {
 }
 
 type Clip struct {
-	Id              string `json:"id"`
-	Url             string `json:"url"`
-	EmbedUrl        string `json:"embed_url"`
-	BroadcasterId   string `json:"broadcaster_id"`
-	BroadcasterName string `json:"broadcaster_name"`
-	CreatorId       string `json:"creator_id"`
-	CreatorName     string `json:"creator_name"`
-	VideoId         string `json:"video_id"`
-	GameId          string `json:"game_id"`
-	Language        string `json:"language"`
-	Title           string `json:"title"`
-	ViewCount       int    `json:"view_count"`
-	CreatedAt       string `json:"created_at"`
-	ThumbnailUrl    string `json:"thumbnail_url"`
+	Id              string    `json:"id"`
+	Url             string    `json:"url"`
+	EmbedUrl        string    `json:"embed_url"`
+	BroadcasterId   string    `json:"broadcaster_id"`
+	BroadcasterName string    `json:"broadcaster_name"`
+	CreatorId       string    `json:"creator_id"`
+	CreatorName     string    `json:"creator_name"`
+	VideoId         string    `json:"video_id"`
+	GameId          string    `json:"game_id"`
+	Language        string    `json:"language"`
+	Title           string    `json:"title"`
+	ViewCount       int       `json:"view_count"`
+	CreatedAt       string    `json:"created_at"`
+	ThumbnailUrl    string    `json:"thumbnail_url"`
+	StartedAt       time.Time `json:",omitempty"`
+	EndedAt         time.Time `json:",omitempty"`
 }
 
 type BroadcasterResponse struct {
@@ -109,18 +112,27 @@ func (t twitchApi) prepareRequest(method string, endpoint string) *http.Request 
 	return req
 }
 
-func (t twitchApi) GetClipsByBroadcasterId(broadcasterId string, after string, before string, ended_at string, started_at string, first int) ([]Clip, string) {
+func (t twitchApi) GetClipsByBroadcasterId(broadcasterId string, after string, before string, endedAt time.Time, startedAt time.Time, first int) ([]Clip, string) {
 	endpoint := t.BaseUrl
 	endpoint.Path = "/helix/clips"
 
-	q := endpoint.Query()
-	q.Set("broadcaster_id", broadcasterId)
-	q.Set("first", strconv.Itoa(first))
-	// q.Set("started_at", started_at)
-	if after != "" {
-		q.Set("after", after)
+	m := make(map[string]string)
+	m["broadcaster_id"] = broadcasterId
+	m["first"] = strconv.Itoa(first)
+	if !startedAt.IsZero() {
+		m["started_at"] = startedAt.Format(time.RFC3339)
 	}
-	endpoint.RawQuery = q.Encode()
+	if !endedAt.IsZero() {
+		m["ended_at"] = endedAt.Format(time.RFC3339)
+	}
+	if after != "" {
+		m["after"] = after
+	}
+	if before != "" {
+		m["before"] = before
+	}
+	q := endpoint.Query()
+	endpoint.RawQuery = prepareQuery(q, m)
 
 	req := t.prepareRequest("GET", endpoint.String())
 	log.Printf("Request: %s", req)
@@ -136,11 +148,18 @@ func (t twitchApi) GetClipsByBroadcasterId(broadcasterId string, after string, b
 	return resp.Data, resp.Pagination.Cursor
 }
 
+func prepareQuery(query url.Values, m map[string]string) string {
+	for k, v := range m {
+		query.Set(k, v)
+	}
+	return query.Encode()
+}
+
 func (t twitchApi) FindClip(targetClip Clip, matchFunc func(Clip, Clip) bool) Clip {
-	clips, cursor := t.GetClipsByBroadcasterId(targetClip.BroadcasterId, "", "", "", "", 100) // Need to figure out how to pass dates
+	clips, cursor := t.GetClipsByBroadcasterId(targetClip.BroadcasterId, "", "", targetClip.EndedAt, targetClip.StartedAt, 100)
 
 	for {
-		if len(clips) == 0 {
+		if len(clips) == 0 || cursor == "" {
 			// return the same clip passed if nothing is found?
 			return targetClip
 		}
@@ -151,7 +170,26 @@ func (t twitchApi) FindClip(targetClip Clip, matchFunc func(Clip, Clip) bool) Cl
 			}
 		}
 
-		clips, cursor = t.GetClipsByBroadcasterId(targetClip.BroadcasterId, cursor, "", "", "", 100) // Same here
+		clips, cursor = t.GetClipsByBroadcasterId(targetClip.BroadcasterId, cursor, "", targetClip.EndedAt, targetClip.StartedAt, 100)
+	}
+}
+
+func (t twitchApi) FindMostPopularClip(targetClip Clip, matchFunc func(Clip, Clip) bool) Clip {
+	clips, cursor := t.GetClipsByBroadcasterId(targetClip.BroadcasterId, "", "", targetClip.EndedAt, targetClip.StartedAt, 100)
+	mostPopular := targetClip
+
+	for {
+		if len(clips) == 0 || cursor == "" {
+			return mostPopular
+		}
+
+		for _, clip := range clips {
+			if clip.ViewCount > mostPopular.ViewCount && matchFunc(clip, targetClip) {
+				mostPopular = clip
+			}
+		}
+
+		clips, cursor = t.GetClipsByBroadcasterId(targetClip.BroadcasterId, cursor, "", targetClip.EndedAt, targetClip.StartedAt, 100)
 	}
 }
 
