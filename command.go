@@ -23,20 +23,12 @@ func ParseCommand(args string) (Command, error) {
 	}
 	command := Command{}
 
-	stringDates := parseDates(args)
-	dates := []time.Time{}
-	for _, date := range stringDates {
-		parsed, err := time.Parse("2006-01-02", date)
-		if err != nil {
-			return Command{}, err
-		}
-		dates = append(dates, parsed)
-	}
+	start, end, stringDates := parseDates(args)
 	if len(stringDates) > 0 {
 		args = removeSubStrings(args, stringDates)
-		command.StartedAt = dates[0]
+		command.StartedAt = start
 		if len(stringDates) > 1 {
-			command.EndedAt = dates[1]
+			command.EndedAt = end
 		}
 	}
 
@@ -77,14 +69,30 @@ func removeSubStrings(target string, toRemove []string) string {
 	return target
 }
 
-func parseDates(args string) []string {
-	regex, err := regexp.Compile("[12][0-9]{3}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])")
+func parseDates(args string) (time.Time, time.Time, []string) {
+	regex, err := regexp.Compile(`[12][0-9]{3}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])`)
 	if err != nil {
 		log.Fatal("regex error: ", err)
 	}
-	matched := regex.FindAllString(args, -1)
+	matched := regex.FindAllString(args, 2)
+	if len(matched) == 0 {
+		return time.Time{}, time.Time{}, []string{}
+	}
 
-	return matched
+	start, err := time.Parse("2006-01-02", matched[0])
+	if err != nil {
+		log.Fatal("time error: ", err)
+	}
+
+	end := time.Time{}
+	if len(matched) > 1 {
+		end, err = time.Parse("2006-01-02", matched[1])
+		if err != nil {
+			log.Fatal("time error: ", err)
+		}
+	}
+
+	return start, end, matched
 }
 
 func parseSimpleDate(args string) (time.Time, time.Time, string) {
