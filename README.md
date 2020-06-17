@@ -1,8 +1,6 @@
-# Clips
+# Clips [![Build Status](https://travis-ci.com/tomasfarias/clips.svg?branch=master)](https://travis-ci.com/tomasfarias/clips) [![Go Report Card](https://goreportcard.com/badge/github.com/tomasfarias/clips)](https://goreportcard.com/report/github.com/tomasfarias/clips)
 
 A Discord bot to look for Twitch clips!
-
-[![Go Report Card](https://goreportcard.com/badge/github.com/tomasfarias/clips)](https://goreportcard.com/report/github.com/tomasfarias/clips)
 
 ## Requirements
 
