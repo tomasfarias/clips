@@ -12,20 +12,15 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-var (
-	Token        string
-	ClientId     string
-	ClientSecret string
-)
-
-func init() {
-	flag.StringVar(&Token, "t", "", "Bot token")
-	flag.StringVar(&ClientId, "c", "", "Twitch client id")
-	flag.StringVar(&ClientSecret, "s", "", "Twitch client secret")
-	flag.Parse()
-}
+var Token, ClientId, ClientSecret string
 
 func main() {
+
+	flag.StringVar(&Token, "t", "a-token", "Bot token")
+	flag.StringVar(&ClientId, "c", "a-client-id", "Twitch client id")
+	flag.StringVar(&ClientSecret, "s", "a-client-secret", "Twitch client secret")
+	flag.Parse()
+
 	dg, err := discordgo.New("Bot " + Token)
 	if err != nil {
 		log.Fatalln("error creating Discord session, ", err)
@@ -53,8 +48,8 @@ Required arguments:
 	- streamer: The name of the Twitch channel/streamer where to look for clips.
 Optional arguments:
 	- title: Find a clip with a specific title. **Must** be enclosed in double quotes.
-	- creator: Filter by clips created by a specific user. If defined, must always come after streamer argument.
-	- start_date: Look for a clip created from this date onwards. Format as YYYY-MM-DD. Will make things run faster if used.
+	- creator: Filter by clips created by a specific user. If defined, **must** always come after streamer argument.
+	- start_date: Look for a clip created from this date onwards. Defaults to **1 week ago**. Format as YYYY-MM-DD. Will make things run faster if used.
 	- end_date: Look for a clip created before this date. Format as YYYY-MM-DD. Will make things run faster if used.`
 	s.ChannelMessageSend(m.ChannelID, help)
 	return

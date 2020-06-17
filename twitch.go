@@ -85,7 +85,7 @@ func (t twitchApi) GetBroadcastersByName(broadcasterNames []string) ([]Broadcast
 
 	req := t.prepareRequest("GET", endpoint.String())
 
-	log.Printf("Request: %s", req)
+	log.Printf("Request: %v", req)
 	jsonResponse, err := t.Client.Do(req)
 	if err != nil {
 		log.Fatal("request failed: ", err)
@@ -135,7 +135,7 @@ func (t twitchApi) GetClipsByBroadcasterId(broadcasterId string, after string, b
 	endpoint.RawQuery = prepareQuery(q, m)
 
 	req := t.prepareRequest("GET", endpoint.String())
-	log.Printf("Request: %s", req)
+	log.Printf("Request: %v", req)
 
 	jsonResponse, err := t.Client.Do(req)
 	if err != nil {

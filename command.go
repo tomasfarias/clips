@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -17,7 +18,7 @@ type Command struct {
 }
 
 func ParseCommand(args string) (Command, error) {
-	if !strings.Contains(args, "!clips") {
+	if !strings.HasPrefix(args, "!clips") {
 		return Command{}, errors.New("command: invalid must start with \"!clips\"")
 	}
 	command := Command{}
@@ -37,6 +38,13 @@ func ParseCommand(args string) (Command, error) {
 		if len(stringDates) > 1 {
 			command.EndedAt = dates[1]
 		}
+	}
+
+	start, end, simpleStringDate := parseSimpleDate(args)
+	if simpleStringDate != "" {
+		args = removeSubStrings(args, []string{simpleStringDate})
+		command.StartedAt = start
+		command.EndedAt = end
 	}
 
 	title := strings.FieldsFunc(args, splitQuote)
@@ -77,6 +85,34 @@ func parseDates(args string) []string {
 	matched := regex.FindAllString(args, -1)
 
 	return matched
+}
+
+func parseSimpleDate(args string) (time.Time, time.Time, string) {
+	regex, err := regexp.Compile(`(?P<Number>\d+)(?P<Unit>d|m|y)`)
+	if err != nil {
+		log.Fatal("regex error: ", err)
+	}
+	matched := regex.FindStringSubmatch(args)
+	if len(matched) == 0 {
+		return time.Time{}, time.Time{}, ""
+	}
+
+	now := time.Now()
+	currentDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	value, err := strconv.Atoi(matched[1])
+	if err != nil {
+		log.Fatal("strconv error: ", err)
+	}
+
+	switch matched[2] {
+	case "d":
+		return currentDate.AddDate(0, 0, -value), currentDate, matched[0]
+	case "m":
+		return currentDate.AddDate(0, -value, 0), currentDate, matched[0]
+	case "y":
+		return currentDate.AddDate(-value, 0, 0), currentDate, matched[0]
+	}
+	return time.Time{}, time.Time{}, ""
 }
 
 func splitQuote(r rune) bool {

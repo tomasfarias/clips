@@ -10,4 +10,3 @@ FROM alpine:latest
 COPY --from=builder /src/clips /usr/local/bin/clips
 
 CMD clips -t $TOKEN -c $CLIENT_ID -s $CLIENT_SECRET
-
