@@ -1,0 +1,11 @@
+language: go
+
+go:
+  - 1.14
+
+before_script:
+- go get -x github.com/golang/lint/golint
+
+script:
+  - golint ./...
+  - go test -v ./...
