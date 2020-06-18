@@ -58,17 +58,22 @@ type twitchApi struct {
 	ClientSecret string
 	AccessToken  string
 	BaseUrl      url.URL
+	AuthUrl      url.URL
 	Client       *http.Client
 }
 
-func NewTwitchApi(clientId string, clientSecret string) twitchApi {
+func NewTwitchApi(clientId string, clientSecret string, setAuth bool) twitchApi {
 	t := twitchApi{
 		ClientId:     clientId,
 		ClientSecret: clientSecret,
 		BaseUrl:      url.URL{Scheme: "https", Host: "api.twitch.tv"},
+		AuthUrl:      url.URL{Scheme: "https", Host: "id.twitch.tv", Path: "/oauth2/token"},
 		Client:       &http.Client{},
 	}
-	t.SetAuthToken()
+
+	if setAuth == true {
+		t.SetAuthToken()
+	}
 
 	return t
 }
@@ -148,13 +153,6 @@ func (t twitchApi) GetClipsByBroadcasterId(broadcasterId string, after string, b
 	return resp.Data, resp.Pagination.Cursor
 }
 
-func prepareQuery(query url.Values, m map[string]string) string {
-	for k, v := range m {
-		query.Set(k, v)
-	}
-	return query.Encode()
-}
-
 func (t twitchApi) FindClip(targetClip Clip, matchFunc func(Clip, Clip) bool) Clip {
 	clips, cursor := t.GetClipsByBroadcasterId(targetClip.BroadcasterId, "", "", targetClip.EndedAt, targetClip.StartedAt, 100)
 
@@ -202,13 +200,15 @@ type TokenResponse struct {
 }
 
 func (t *twitchApi) SetAuthToken() {
-	endpoint := url.URL{Scheme: "https", Host: "id.twitch.tv", Path: "/oauth2/token"}
-	q := endpoint.Query()
-	q.Set("client_id", t.ClientId)
-	q.Set("client_secret", t.ClientSecret)
-	q.Set("grant_type", "client_credentials")
-	endpoint.RawQuery = q.Encode()
+	endpoint := t.AuthUrl
 
+	q := endpoint.Query()
+	m := make(map[string]string)
+	m["client_id"] = t.ClientId
+	m["client_secret"] = t.ClientSecret
+	m["grant_type"] = "client_credentials"
+
+	endpoint.RawQuery = prepareQuery(q, m)
 	req := t.prepareRequest("POST", endpoint.String())
 
 	jsonResponse, err := t.Client.Do(req)
@@ -220,4 +220,11 @@ func (t *twitchApi) SetAuthToken() {
 	json.NewDecoder(jsonResponse.Body).Decode(&resp)
 
 	t.AccessToken = resp.AccessToken
+}
+
+func prepareQuery(query url.Values, m map[string]string) string {
+	for k, v := range m {
+		query.Set(k, v)
+	}
+	return query.Encode()
 }

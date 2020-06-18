@@ -70,7 +70,7 @@ func handleCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 		s.ChannelMessageSend(m.ChannelID, "I need at least the name of a streamer to look for clips! Use \"!clips help\" for more info.")
 		return
 	}
-	t := NewTwitchApi(ClientId, ClientSecret)
+	t := NewTwitchApi(ClientId, ClientSecret, true)
 
 	broadcasters, err := t.GetBroadcastersByName([]string{command.Broadcaster})
 	if err != nil {
