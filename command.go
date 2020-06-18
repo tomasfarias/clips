@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+// A Clips bot command
 type Command struct {
 	Broadcaster string
 	Creator     string
@@ -17,6 +18,7 @@ type Command struct {
 	Title       string
 }
 
+// Parses a Discord message string to a Command
 func ParseCommand(args string) (Command, error) {
 	if !strings.HasPrefix(args, "!clips") {
 		return Command{}, errors.New("command: invalid must start with \"!clips\"")

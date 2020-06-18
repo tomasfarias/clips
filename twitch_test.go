@@ -9,11 +9,11 @@ import (
 	"time"
 )
 
-func TestNewTwitchApi(t *testing.T) {
-	twitch := NewTwitchApi("client-id", "client-secret", false)
+func TestNewTwitchAPI(t *testing.T) {
+	twitch := NewTwitchAPI("client-id", "client-secret", false)
 
-	if twitch.ClientId != "client-id" {
-		t.Errorf("ClientId not properly set, expected \"client-id\" got %s", twitch.ClientId)
+	if twitch.ClientID != "client-id" {
+		t.Errorf("ClientID not properly set, expected \"client-id\" got %s", twitch.ClientID)
 	}
 	if twitch.ClientSecret != "client-secret" {
 		t.Errorf("ClientSecret not properly set, expected \"client-secret\" got %s", twitch.ClientSecret)
@@ -22,13 +22,13 @@ func TestNewTwitchApi(t *testing.T) {
 		t.Errorf("AccessToken not properly set, expected \"\" got %s", twitch.AccessToken)
 	}
 
-	baseUrl := url.URL{Scheme: "https", Host: "api.twitch.tv"}
-	if twitch.BaseUrl != baseUrl {
-		t.Errorf("BaseUrl not properly set, expected \"%v\" got %v", baseUrl, twitch.BaseUrl)
+	baseURL := url.URL{Scheme: "https", Host: "api.twitch.tv"}
+	if twitch.BaseURL != baseURL {
+		t.Errorf("BaseUrl not properly set, expected \"%v\" got %v", baseURL, twitch.BaseURL)
 	}
-	authUrl := url.URL{Scheme: "https", Host: "id.twitch.tv", Path: "/oauth2/token"}
-	if twitch.AuthUrl != authUrl {
-		t.Errorf("AuthUrl not properly set, expected \"%v\" got %v", authUrl, twitch.AuthUrl)
+	authURL := url.URL{Scheme: "https", Host: "id.twitch.tv", Path: "/oauth2/token"}
+	if twitch.AuthURL != authURL {
+		t.Errorf("AuthUrl not properly set, expected \"%v\" got %v", authURL, twitch.AuthURL)
 	}
 }
 
@@ -47,7 +47,7 @@ func TestPrepareQuery(t *testing.T) {
 }
 
 func TestPrepareRequest(t *testing.T) {
-	twitch := NewTwitchApi("client-id", "client-secret", false)
+	twitch := NewTwitchAPI("client-id", "client-secret", false)
 	twitch.AccessToken = "some-token"
 	req := twitch.prepareRequest("GET", "https://some.fancy/url")
 
@@ -68,9 +68,9 @@ func TestPrepareRequest(t *testing.T) {
 func TestSetAuthToken(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(authHandler))
 
-	twitch := NewTwitchApi("client-id", "client-secret", false)
-	mockUrl, _ := url.Parse(ts.URL)
-	twitch.AuthUrl = *mockUrl
+	twitch := NewTwitchAPI("client-id", "client-secret", false)
+	mockURL, _ := url.Parse(ts.URL)
+	twitch.AuthURL = *mockURL
 
 	twitch.SetAuthToken()
 	if twitch.AccessToken != "my-test-token" {
@@ -87,19 +87,19 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 func TestGetBroadcastersByName(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(broadcastersHandler))
 
-	twitch := NewTwitchApi("client-id", "client-secret", false)
-	mockUrl, _ := url.Parse(ts.URL)
-	twitch.BaseUrl = *mockUrl
+	twitch := NewTwitchAPI("client-id", "client-secret", false)
+	mockURL, _ := url.Parse(ts.URL)
+	twitch.BaseURL = *mockURL
 
 	broadcasters, _ := twitch.GetBroadcastersByName([]string{"test-login"})
-	if broadcasters[0].Id != "test-id" {
-		t.Errorf("Broadcaster.Id not correctly returned by GetBroadcastersByName, expected \"test-id\" got %s", broadcasters[0].Id)
+	if broadcasters[0].ID != "test-id" {
+		t.Errorf("Broadcaster.Id not correctly returned by GetBroadcastersByName, expected \"test-id\" got %s", broadcasters[0].ID)
 	}
 	ts.Close()
 }
 
 func broadcastersHandler(w http.ResponseWriter, r *http.Request) {
-	b := Broadcaster{Id: "test-id"}
+	b := Broadcaster{ID: "test-id"}
 	res := BroadcasterResponse{Data: []Broadcaster{b}}
 	json.NewEncoder(w).Encode(res)
 }
@@ -107,22 +107,22 @@ func broadcastersHandler(w http.ResponseWriter, r *http.Request) {
 func TestGetClipsByBroadcasterId(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(clipsHandler))
 
-	twitch := NewTwitchApi("client-id", "client-secret", false)
-	mockUrl, _ := url.Parse(ts.URL)
-	twitch.BaseUrl = *mockUrl
+	twitch := NewTwitchAPI("client-id", "client-secret", false)
+	mockURL, _ := url.Parse(ts.URL)
+	twitch.BaseURL = *mockURL
 
-	clips, _ := twitch.GetClipsByBroadcasterId("broadcaster", "", "", time.Time{}, time.Time{}, 100)
-	if clips[0].Id != "test-id" {
-		t.Errorf("Clip.Id not correctly returned by GetBroadcastersByName, expected \"test-id\" got %s", clips[0].Id)
+	clips, _ := twitch.GetClipsByBroadcasterID("broadcaster", "", "", time.Time{}, time.Time{}, 100)
+	if clips[0].ID != "test-id" {
+		t.Errorf("Clip.Id not correctly returned by GetBroadcastersByName, expected \"test-id\" got %s", clips[0].ID)
 	}
-	if clips[0].BroadcasterId != "broadcaster_id=broadcaster&first=100" {
-		t.Errorf("Clip.BroadcasterId not correctly returned by GetBroadcastersByName, expected \"broadcaster_id=broadcaster\" got %s", clips[0].BroadcasterId)
+	if clips[0].BroadcasterID != "broadcaster_id=broadcaster&first=100" {
+		t.Errorf("Clip.BroadcasterId not correctly returned by GetBroadcastersByName, expected \"broadcaster_id=broadcaster\" got %s", clips[0].BroadcasterID)
 	}
 	ts.Close()
 }
 
 func clipsHandler(w http.ResponseWriter, r *http.Request) {
-	b := Clip{Id: "test-id", BroadcasterId: r.URL.RawQuery}
+	b := Clip{ID: "test-id", BroadcasterID: r.URL.RawQuery}
 	res := ClipsResponse{Data: []Clip{b}}
 	json.NewEncoder(w).Encode(res)
 }

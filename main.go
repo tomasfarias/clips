@@ -12,12 +12,12 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-var Token, ClientId, ClientSecret string
+var Token, ClientID, ClientSecret string
 
 func main() {
 
 	flag.StringVar(&Token, "t", "a-token", "Bot token")
-	flag.StringVar(&ClientId, "c", "a-client-id", "Twitch client id")
+	flag.StringVar(&ClientID, "c", "a-client-id", "Twitch client id")
 	flag.StringVar(&ClientSecret, "s", "a-client-secret", "Twitch client secret")
 	flag.Parse()
 
@@ -70,7 +70,7 @@ func handleCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 		s.ChannelMessageSend(m.ChannelID, "I need at least the name of a streamer to look for clips! Use \"!clips help\" for more info.")
 		return
 	}
-	t := NewTwitchApi(ClientId, ClientSecret, true)
+	t := NewTwitchAPI(ClientID, ClientSecret, true)
 
 	broadcasters, err := t.GetBroadcastersByName([]string{command.Broadcaster})
 	if err != nil {
@@ -79,7 +79,7 @@ func handleCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 	log.Printf("Command: %s", command)
 	targetClip := Clip{
-		BroadcasterId: broadcasters[0].Id,
+		BroadcasterID: broadcasters[0].ID,
 		Title:         command.Title,
 		StartedAt:     command.StartedAt,
 		EndedAt:       command.EndedAt,
@@ -104,7 +104,7 @@ func handleCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	s.ChannelMessageSend(m.ChannelID, "Found your clip: "+result.Url)
+	s.ChannelMessageSend(m.ChannelID, "Found your clip: "+result.URL)
 	return
 }
 

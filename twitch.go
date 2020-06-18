@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// A response from a request to Twitch's Get Clips
 type ClipsResponse struct {
 	Data       []Clip `json:"data"`
 	Pagination struct {
@@ -17,57 +18,61 @@ type ClipsResponse struct {
 	} `json:"pagination"`
 }
 
+// Clip represents a Twitch clip
 type Clip struct {
-	Id              string    `json:"id"`
-	Url             string    `json:"url"`
-	EmbedUrl        string    `json:"embed_url"`
-	BroadcasterId   string    `json:"broadcaster_id"`
+	ID              string    `json:"id"`
+	URL             string    `json:"url"`
+	EmbedURL        string    `json:"embed_url"`
+	BroadcasterID   string    `json:"broadcaster_id"`
 	BroadcasterName string    `json:"broadcaster_name"`
-	CreatorId       string    `json:"creator_id"`
+	CreatorID       string    `json:"creator_id"`
 	CreatorName     string    `json:"creator_name"`
-	VideoId         string    `json:"video_id"`
-	GameId          string    `json:"game_id"`
+	VideoID         string    `json:"video_id"`
+	GameID          string    `json:"game_id"`
 	Language        string    `json:"language"`
 	Title           string    `json:"title"`
 	ViewCount       int       `json:"view_count"`
 	CreatedAt       string    `json:"created_at"`
-	ThumbnailUrl    string    `json:"thumbnail_url"`
+	ThumbnailURL    string    `json:"thumbnail_url"`
 	StartedAt       time.Time `json:",omitempty"`
 	EndedAt         time.Time `json:",omitempty"`
 }
 
+// A response from a request to Twitch's Get users
 type BroadcasterResponse struct {
 	Data []Broadcaster `json:"data"`
 }
 
+// Broadcaster represents a Twitch user, used for broadcasters
 type Broadcaster struct {
-	Id              string `json:"id"`
+	ID              string `json:"id"`
 	Login           string `json:"login"`
 	DisplayName     string `json:"display_name"`
 	Type            string `json:"type"`
 	BroadcasterType string `json:"broadcaster_type"`
 	Description     string `json:"description"`
-	ProfileImageUrl string `json:"profile_image_url"`
-	OfflineImageUrl string `json:"offline_image_url"`
+	ProfileImageURL string `json:"profile_image_url"`
+	OfflineImageURL string `json:"offline_image_url"`
 	ViewCount       int    `json:"view_count"`
 	Email           string `json:"email"`
 }
 
-type twitchApi struct {
-	ClientId     string
+// Holds all configuration needed for a Twitch API connection
+type TwitchAPI struct {
+	ClientID     string
 	ClientSecret string
 	AccessToken  string
-	BaseUrl      url.URL
-	AuthUrl      url.URL
+	BaseURL      url.URL
+	AuthURL      url.URL
 	Client       *http.Client
 }
 
-func NewTwitchApi(clientId string, clientSecret string, setAuth bool) twitchApi {
-	t := twitchApi{
-		ClientId:     clientId,
+func NewTwitchAPI(clientID string, clientSecret string, setAuth bool) TwitchAPI {
+	t := TwitchAPI{
+		ClientID:     clientID,
 		ClientSecret: clientSecret,
-		BaseUrl:      url.URL{Scheme: "https", Host: "api.twitch.tv"},
-		AuthUrl:      url.URL{Scheme: "https", Host: "id.twitch.tv", Path: "/oauth2/token"},
+		BaseURL:      url.URL{Scheme: "https", Host: "api.twitch.tv"},
+		AuthURL:      url.URL{Scheme: "https", Host: "id.twitch.tv", Path: "/oauth2/token"},
 		Client:       &http.Client{},
 	}
 
@@ -78,8 +83,8 @@ func NewTwitchApi(clientId string, clientSecret string, setAuth bool) twitchApi 
 	return t
 }
 
-func (t twitchApi) GetBroadcastersByName(broadcasterNames []string) ([]Broadcaster, error) {
-	endpoint := t.BaseUrl
+func (t TwitchAPI) GetBroadcastersByName(broadcasterNames []string) ([]Broadcaster, error) {
+	endpoint := t.BaseURL
 	endpoint.Path = "/helix/users"
 
 	q := endpoint.Query()
@@ -105,24 +110,24 @@ func (t twitchApi) GetBroadcastersByName(broadcasterNames []string) ([]Broadcast
 	return resp.Data, nil
 }
 
-func (t twitchApi) prepareRequest(method string, endpoint string) *http.Request {
+func (t TwitchAPI) prepareRequest(method string, endpoint string) *http.Request {
 	req, err := http.NewRequest(method, endpoint, nil)
 	if err != nil {
 		log.Fatal("failed to create request: ", err)
 	}
 
-	req.Header.Add("Client-ID", t.ClientId)
+	req.Header.Add("Client-ID", t.ClientID)
 	req.Header.Add("Authorization", "Bearer "+t.AccessToken)
 
 	return req
 }
 
-func (t twitchApi) GetClipsByBroadcasterId(broadcasterId string, after string, before string, endedAt time.Time, startedAt time.Time, first int) ([]Clip, string) {
-	endpoint := t.BaseUrl
+func (t TwitchAPI) GetClipsByBroadcasterID(broadcasterID string, after string, before string, endedAt time.Time, startedAt time.Time, first int) ([]Clip, string) {
+	endpoint := t.BaseURL
 	endpoint.Path = "/helix/clips"
 
 	m := make(map[string]string)
-	m["broadcaster_id"] = broadcasterId
+	m["broadcaster_id"] = broadcasterID
 	m["first"] = strconv.Itoa(first)
 	if !startedAt.IsZero() {
 		m["started_at"] = startedAt.Format(time.RFC3339)
@@ -153,8 +158,8 @@ func (t twitchApi) GetClipsByBroadcasterId(broadcasterId string, after string, b
 	return resp.Data, resp.Pagination.Cursor
 }
 
-func (t twitchApi) FindClip(targetClip Clip, matchFunc func(Clip, Clip) bool) Clip {
-	clips, cursor := t.GetClipsByBroadcasterId(targetClip.BroadcasterId, "", "", targetClip.EndedAt, targetClip.StartedAt, 100)
+func (t TwitchAPI) FindClip(targetClip Clip, matchFunc func(Clip, Clip) bool) Clip {
+	clips, cursor := t.GetClipsByBroadcasterID(targetClip.BroadcasterID, "", "", targetClip.EndedAt, targetClip.StartedAt, 100)
 
 	for {
 		if len(clips) == 0 || cursor == "" {
@@ -168,12 +173,12 @@ func (t twitchApi) FindClip(targetClip Clip, matchFunc func(Clip, Clip) bool) Cl
 			}
 		}
 
-		clips, cursor = t.GetClipsByBroadcasterId(targetClip.BroadcasterId, cursor, "", targetClip.EndedAt, targetClip.StartedAt, 100)
+		clips, cursor = t.GetClipsByBroadcasterID(targetClip.BroadcasterID, cursor, "", targetClip.EndedAt, targetClip.StartedAt, 100)
 	}
 }
 
-func (t twitchApi) FindMostPopularClip(targetClip Clip, matchFunc func(Clip, Clip) bool) Clip {
-	clips, cursor := t.GetClipsByBroadcasterId(targetClip.BroadcasterId, "", "", targetClip.EndedAt, targetClip.StartedAt, 100)
+func (t TwitchAPI) FindMostPopularClip(targetClip Clip, matchFunc func(Clip, Clip) bool) Clip {
+	clips, cursor := t.GetClipsByBroadcasterID(targetClip.BroadcasterID, "", "", targetClip.EndedAt, targetClip.StartedAt, 100)
 	mostPopular := targetClip
 
 	for {
@@ -187,10 +192,11 @@ func (t twitchApi) FindMostPopularClip(targetClip Clip, matchFunc func(Clip, Cli
 			}
 		}
 
-		clips, cursor = t.GetClipsByBroadcasterId(targetClip.BroadcasterId, cursor, "", targetClip.EndedAt, targetClip.StartedAt, 100)
+		clips, cursor = t.GetClipsByBroadcasterID(targetClip.BroadcasterID, cursor, "", targetClip.EndedAt, targetClip.StartedAt, 100)
 	}
 }
 
+// A response from the auth endpoint containing an access token
 type TokenResponse struct {
 	AccessToken  string   `json:"access_token"`
 	RefreshToken string   `json:"refresh_token"`
@@ -199,12 +205,12 @@ type TokenResponse struct {
 	TokenType    string   `json:"token_type"`
 }
 
-func (t *twitchApi) SetAuthToken() {
-	endpoint := t.AuthUrl
+func (t *TwitchAPI) SetAuthToken() {
+	endpoint := t.AuthURL
 
 	q := endpoint.Query()
 	m := make(map[string]string)
-	m["client_id"] = t.ClientId
+	m["client_id"] = t.ClientID
 	m["client_secret"] = t.ClientSecret
 	m["grant_type"] = "client_credentials"
 
