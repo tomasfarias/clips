@@ -12,7 +12,9 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-var Token, ClientID, ClientSecret string
+var Token string
+var ClientID string
+var ClientSecret string
 
 func main() {
 
