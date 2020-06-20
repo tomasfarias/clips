@@ -1,12 +1,13 @@
-FROM go:1.14 as builder
+FROM golang:1.14 as builder
 
 WORKDIR /src/
 COPY . .
 
-RUN go build .
+RUN CGO_ENABLED=0 GOOS=linux go build -o clips .
 
 FROM alpine:latest
 
-COPY --from=builder /src/clips /usr/local/bin/clips
+WORKDIR /root/
+COPY --from=builder /src/clips .
 
-CMD clips -t $TOKEN -c $CLIENT_ID -s $CLIENT_SECRET
+CMD ./clips -t=$TOKEN -c=$CLIENT_ID -s=$CLIENT_SECRET

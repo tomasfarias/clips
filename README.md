@@ -25,7 +25,7 @@ Build and run the container pointing to your `.env` file:
 
 ```
 docker build --tag clips:1.0 .
-docker run --env-file /path/to/.env --name clips clips:1.0
+docker run -d --env-file /path/to/.env --name clips clips:1.0
 ```
 
 Once it's running, your Discord Bot user will need to be invited to your Discord server.
