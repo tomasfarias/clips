@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -15,6 +16,7 @@ import (
 var Token string
 var ClientID string
 var ClientSecret string
+var Twitch TwitchAPI
 
 func main() {
 
@@ -27,6 +29,8 @@ func main() {
 	if err != nil {
 		log.Fatalln("error creating Discord session, ", err)
 	}
+	dg.SyncEvents = true
+	Twitch = NewTwitchAPI(ClientID, ClientSecret, true)
 
 	dg.AddHandler(handleCommand)
 
@@ -45,10 +49,11 @@ func main() {
 
 func handleHelpCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 	help := `Search for Twitch clips.
-Usage: !clips streamer "title" creator start_date end_date
+Usage: !clips subcommand streamer "title" creator start_date end_date
 Required arguments:
 	- streamer: The name of the Twitch channel/streamer where to look for clips.
 Optional arguments:
+	- subcommand: Available subcommands are "topN" and "help": "topN" returns the top N clips by view count for the given streamer, filtering by any other optional argument passed, "help" prints this message.
 	- title: Find a clip with a specific title. **Must** be enclosed in double quotes.
 	- creator: Filter by clips created by a specific user. If defined, **must** always come after streamer argument.
 	- start_date: Look for a clip created from this date onwards. Defaults to **1 week ago**. Format as YYYY-MM-DD. Will make things run faster if used.
@@ -57,29 +62,71 @@ Optional arguments:
 	return
 }
 
+func handleTopCommand(s *discordgo.Session, m *discordgo.MessageCreate, c Command) {
+	if c.Broadcaster == "" {
+		s.ChannelMessageSend(m.ChannelID, "I need at least the name of a streamer to look for clips! Use \"!clips help\" for more info.")
+		return
+	}
+
+	broadcasters, err := Twitch.GetBroadcastersByName([]string{c.Broadcaster})
+	if err != nil {
+		s.ChannelMessageSend(m.ChannelID, "Couldn't find a streamer named \""+c.Broadcaster+"\". Could you check the name and try again?")
+		return
+	}
+	targetClip := Clip{
+		BroadcasterID: broadcasters[0].ID,
+		Title:         c.Title,
+		StartedAt:     c.StartedAt,
+		EndedAt:       c.EndedAt,
+		CreatorName:   c.Creator,
+	}
+	if targetClip.StartedAt.IsZero() {
+		targetClip.StartedAt = time.Now().AddDate(0, 0, -7)
+	}
+	matchFunc := matchMany(matchTitle, matchCreator)
+	results := Twitch.FindMostPopularClips(targetClip, matchFunc, c.Top)
+
+	if len(results) == 0 {
+		s.ChannelMessageSend(m.ChannelID, "Couldn't find any \""+c.Broadcaster+"\" clips. Check the streamer name and the date bounds.")
+		return
+	}
+
+	msg := "Top " + strconv.Itoa(len(results)) + " " + c.Broadcaster + " clips from " + c.StartedAt.Format("2006-01-02") + " to " + c.EndedAt.Format("2006-01-02") + "\n"
+	for i, clip := range results {
+		msg = msg + "\t" + strconv.Itoa(i+1) + ". \"" + clip.Title + "\" by " + clip.CreatorName + ". Views: " + strconv.Itoa(clip.ViewCount) + "\n"
+	}
+
+	s.ChannelMessageSend(m.ChannelID, msg)
+	return
+}
+
 func handleCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
-	if m.Author.ID == s.State.User.ID || !strings.Contains(m.Content, "!clips") {
+	if m.Author.ID == s.State.User.ID || !strings.HasPrefix(m.Content, "!clips") {
 		return
 	}
 	log.Printf("Got message %s", m.Content)
 	command, err := ParseCommand(m.Content)
-	if command.Broadcaster == "help" {
+	switch command.SubCommand {
+	case "help":
 		handleHelpCommand(s, m)
 		return
+	case "top":
+		handleTopCommand(s, m, command)
+		return
 	}
+	log.Printf("Command: %v", command)
 
-	if err != nil {
+	if err != nil || command.Broadcaster == "" {
 		s.ChannelMessageSend(m.ChannelID, "I need at least the name of a streamer to look for clips! Use \"!clips help\" for more info.")
 		return
 	}
-	t := NewTwitchAPI(ClientID, ClientSecret, true)
 
-	broadcasters, err := t.GetBroadcastersByName([]string{command.Broadcaster})
+	broadcasters, err := Twitch.GetBroadcastersByName([]string{command.Broadcaster})
 	if err != nil {
 		s.ChannelMessageSend(m.ChannelID, "Couldn't find a streamer named \""+command.Broadcaster+"\". Could you check the name and try again?")
 		return
 	}
-	log.Printf("Command: %s", command)
+	log.Printf("Command: %v", command)
 	targetClip := Clip{
 		BroadcasterID: broadcasters[0].ID,
 		Title:         command.Title,
@@ -95,10 +142,10 @@ func handleCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 	var result Clip
 	if targetClip.Title == "" || targetClip.CreatorName == "" {
 		// There may be many clips with the same creator or title, so we look for the most popular one
-		result = t.FindMostPopularClip(targetClip, matchFunc)
+		result = Twitch.FindMostPopularClip(targetClip, matchFunc)
 	} else {
 		// Otherwise, we're looking for a specific clip
-		result = t.FindClip(targetClip, matchFunc)
+		result = Twitch.FindClip(targetClip, matchFunc)
 	}
 
 	if result == targetClip {

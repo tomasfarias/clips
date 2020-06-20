@@ -14,8 +14,10 @@ type Command struct {
 	Broadcaster string
 	Creator     string
 	StartedAt   time.Time
+	SubCommand  string
 	EndedAt     time.Time
 	Title       string
+	Top         int
 }
 
 // ParseCommand parses a Discord message string to a Command
@@ -24,6 +26,7 @@ func ParseCommand(args string) (Command, error) {
 		return Command{}, errors.New("command: invalid must start with \"!clips\"")
 	}
 	command := Command{}
+	args = removeSubStrings(args, []string{"!clips"})
 
 	start, end, stringDates := parseDates(args)
 	if len(stringDates) > 0 {
@@ -49,14 +52,36 @@ func ParseCommand(args string) (Command, error) {
 
 	words := strings.Fields(args)
 	log.Printf("Parsing args: %s", words)
+	if len(words) > 0 {
+		switch potentialSubCommand := words[0]; {
+		case potentialSubCommand == "help":
+			command.SubCommand = potentialSubCommand
+			words = words[1:]
+		case strings.HasPrefix(potentialSubCommand, "top"):
+			command.SubCommand = "top"
+			n := potentialSubCommand[3:]
+			if n == "" {
+				command.Top = 10 // Default is top 10
+			} else {
+				top, err := strconv.Atoi(n)
+				if err != nil {
+					log.Printf("strconv error, : %s", err)
+				}
+
+				command.Top = top
+			}
+			words = words[1:]
+		}
+	}
+
 	switch nParams := len(words); {
-	case nParams == 1:
-		return Command{}, errors.New("command: no arguments passed")
-	case nParams > 2:
-		command.Creator = words[2]
+	case nParams == 0:
+		return command, nil
+	case nParams >= 2:
+		command.Creator = words[1]
 		fallthrough
-	case nParams > 1:
-		command.Broadcaster = words[1]
+	case nParams >= 1:
+		command.Broadcaster = words[0]
 	}
 
 	return command, nil
@@ -108,7 +133,7 @@ func parseSimpleDate(args string) (time.Time, time.Time, string) {
 	}
 
 	now := time.Now()
-	currentDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	currentDate := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), 0, 0, now.Location()) // Twitch ignores everything after minute
 	value, err := strconv.Atoi(matched[1])
 	if err != nil {
 		log.Fatal("strconv error: ", err)

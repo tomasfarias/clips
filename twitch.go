@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"time"
 )
@@ -194,6 +195,27 @@ func (t TwitchAPI) FindMostPopularClip(targetClip Clip, matchFunc func(Clip, Cli
 		for _, clip := range clips {
 			if clip.ViewCount > mostPopular.ViewCount && matchFunc(clip, targetClip) {
 				mostPopular = clip
+			}
+		}
+
+		clips, cursor = t.GetClipsByBroadcasterID(targetClip.BroadcasterID, cursor, "", targetClip.EndedAt, targetClip.StartedAt, 100)
+	}
+}
+
+// FindMostPopularClips compares Twitch clips to targetClip using matchFunc and returns the top most popular clips
+func (t TwitchAPI) FindMostPopularClips(targetClip Clip, matchFunc func(Clip, Clip) bool, top int) []Clip {
+	clips, cursor := t.GetClipsByBroadcasterID(targetClip.BroadcasterID, "", "", targetClip.EndedAt, targetClip.StartedAt, 100)
+	var clipsSorted []Clip
+
+	for {
+		if len(clips) == 0 || cursor == "" {
+			sort.Slice(clipsSorted, func(i, j int) bool { return clipsSorted[i].ViewCount > clipsSorted[j].ViewCount })
+			return clipsSorted[:top]
+		}
+
+		for _, clip := range clips {
+			if matchFunc(clip, targetClip) {
+				clipsSorted = append(clipsSorted, clip)
 			}
 		}
 
